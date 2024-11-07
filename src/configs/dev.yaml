@@ -1,0 +1,10 @@
+env: "development"
+
+storage:
+  storage_path: "./src/internal/infrastructure/db/storage.db"
+
+http_server:
+  host: "localhost"
+  port: "8082"
+  timeout: 4s
+  idle_timeout: 60s
