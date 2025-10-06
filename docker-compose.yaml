@@ -1,0 +1,63 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: comment-tree-postgres
+    environment:
+      POSTGRES_DB: comment-tree-db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d comment-tree-db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    image: bitnami/redis:latest
+    container_name: comment-tree-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    environment:
+      - REDIS_PASSWORD=comment-tree-password
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "comment-tree-password", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  api:
+    build:
+      context: .  # Changed from Dockerfile to current directory
+      dockerfile: Dockerfile  # Explicitly specify the Dockerfile
+      target: builder
+    command: ["/app/api"]
+    container_name: comment-tree-api
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      CONFIG_PATH: ./configs/api/prod.yaml
+    volumes:
+      - ./configs:/app/configs:ro
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  redis_data:
+  pgdata:

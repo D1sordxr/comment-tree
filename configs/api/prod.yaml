@@ -1,0 +1,24 @@
+storage:
+  host: "postgres"
+  port: 5432
+  database: "comment-tree-db"
+  user: "postgres"
+  password: "postgres"
+  migrations: true
+  ssl_mode: "disable"
+
+cache:
+  client_address: "redis:6379"
+  password: "comment-tree-password"
+
+server:
+  address: "0.0.0.0"
+  port: "8080"
+  timeout: "30s"
+  idle_timeout: "120s"
+  cors: true
+  allow_origins:
+    - "http://localhost:80"
+    - "http://localhost:88"
+    - "http://ui:80"
+    - "http://ui:88"
