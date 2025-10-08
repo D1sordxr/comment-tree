@@ -24,149 +24,180 @@ func (h *Handler) CreateComment(c *gin.Context) {
 	if err := httputil.BindWithCustomValidation(
 		c,
 		&req,
-		validator.ValidateStruct, // just an experiment
+		validator.ValidateStruct,
 	); err != nil {
-		c.JSON(400, dto.DefaultResponse{"error": "Invalid request"})
+		c.JSON(400, dto.ErrorResponse{
+			Error:   "Invalid request",
+			Details: err.Error(),
+		})
 		return
 	}
 
-	comment, err := h.uc.Create(c.Request.Context(), input.CreateInput{
+	result, err := h.uc.Create(c.Request.Context(), input.CreateInput{
 		ParentID:           req.ParentID,
 		Content:            req.Content,
 		Author:             req.Author,
 		CommentDestination: req.CommentDestination,
 	})
 	if err != nil {
-		c.JSON(500, dto.DefaultResponse{"error": err.Error()})
+		c.JSON(500, dto.ErrorResponse{
+			Error:   "Failed to create comment",
+			Details: err.Error(),
+		})
 		return
 	}
 
-	c.JSON(201, dto.DefaultResponse{"data": comment})
-}
-
-func (h *Handler) GetComment(c *ginext.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		c.JSON(400, dto.DefaultResponse{"error": "Invalid comment ID"})
-		return
-	}
-
-	comment, err := h.uc.Get(c.Request.Context(), id)
-	if err != nil {
-		c.JSON(500, dto.DefaultResponse{"error": err.Error()})
-		return
-	}
-
-	if comment == nil {
-		c.JSON(404, dto.DefaultResponse{"error": "Comment not found"})
-		return
-	}
-
-	c.JSON(200, dto.DefaultResponse{"data": comment})
-}
-
-func (h *Handler) GetComments(c *ginext.Context) {
-	parentID, _ := strconv.Atoi(c.Query("parent"))
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	sort := c.DefaultQuery("sort", "created_at_desc")
-	search := c.Query("search")
-
-	var parentIDPtr *int
-	if c.Query("parent") != "" {
-		parentIDPtr = &parentID
-	}
-
-	comments, err := h.uc.GetMany(c.Request.Context(), input.GetManyInput{
-		ParentID: parentIDPtr,
-		Page:     page,
-		PageSize: pageSize,
-		Sort:     sort,
-		Search:   search,
+	c.JSON(201, dto.SuccessResponse{
+		Message: "Comment created successfully",
+		Data:    result,
 	})
-	if err != nil {
-		c.JSON(500, dto.DefaultResponse{"error": err.Error()})
+}
+
+func (h *Handler) GetCommentTree(c *gin.Context) {
+	destination := c.Query("destination")
+	cursor, _ := strconv.Atoi(c.DefaultQuery("cursor", "0"))
+
+	if destination == "" {
+		c.JSON(400, dto.ErrorResponse{
+			Error: "Destination parameter is required",
+		})
 		return
 	}
 
-	response := dto.CommentsResponse{
-		Comments: comments,
-		Total:    len(comments),
-		Page:     page,
-		PageSize: pageSize,
+	var (
+		result interface{}
+		err    error
+	)
+
+	if cursor > 0 {
+		result, err = h.uc.GetTreeWithPagination(c.Request.Context(), input.GetTreeWithPagination{
+			CommentDestination: destination,
+			CursorID:           cursor,
+		})
+	} else {
+		result, err = h.uc.GetTreeByDestination(c.Request.Context(), destination)
 	}
 
-	c.JSON(200, dto.DefaultResponse{"data": response})
+	if err != nil {
+		c.JSON(500, dto.ErrorResponse{
+			Error:   "Failed to get comments",
+			Details: err.Error(),
+		})
+		return
+	}
+
+	c.JSON(200, dto.SuccessResponse{
+		Data: result,
+	})
 }
 
-func (h *Handler) DeleteComment(c *ginext.Context) {
+func (h *Handler) GetComment(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(400, dto.DefaultResponse{"error": "Invalid comment ID"})
+		c.JSON(400, dto.ErrorResponse{
+			Error: "Invalid comment ID",
+		})
 		return
 	}
 
-	comment, err := h.uc.Get(c.Request.Context(), id)
+	treeResult, err := h.uc.GetByIDWithChildren(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(500, dto.DefaultResponse{"error": err.Error()})
+		c.JSON(500, dto.ErrorResponse{
+			Error:   "Failed to get comment",
+			Details: err.Error(),
+		})
 		return
 	}
 
-	if comment == nil {
-		c.JSON(404, dto.DefaultResponse{"error": "Comment not found"})
-		return
-	}
-
-	err = h.uc.Delete(c.Request.Context(), id)
-	if err != nil {
-		c.JSON(500, dto.DefaultResponse{"error": err.Error()})
-		return
-	}
-
-	c.JSON(200, dto.DefaultResponse{"message": "Comment deleted successfully"})
+	c.JSON(200, dto.SuccessResponse{
+		Data: treeResult,
+	})
 }
 
-func (h *Handler) SearchComments(c *ginext.Context) {
+func (h *Handler) DeleteComment(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(400, dto.ErrorResponse{
+			Error: "Invalid comment ID",
+		})
+		return
+	}
+
+	result, err := h.uc.Delete(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(500, dto.ErrorResponse{
+			Error:   "Failed to delete comment",
+			Details: err.Error(),
+		})
+		return
+	}
+
+	if !result.Success {
+		c.JSON(500, dto.ErrorResponse{
+			Error: "Failed to delete comment",
+		})
+		return
+	}
+
+	c.JSON(200, dto.SuccessResponse{
+		Message: "Comment deleted successfully",
+		Data:    result,
+	})
+}
+
+func (h *Handler) SearchComments(c *gin.Context) {
 	query := c.Query("q")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	destination := c.Query("destination")
+	author := c.Query("author")
 
 	if query == "" {
-		c.JSON(400, dto.DefaultResponse{"error": "Search query is required"})
+		c.JSON(400, dto.ErrorResponse{
+			Error: "Search query is required",
+		})
 		return
 	}
 
-	comments, err := h.uc.GetMany(c.Request.Context(), input.GetManyInput{
-		Search:   query,
-		Page:     page,
-		PageSize: pageSize,
+	if destination == "" {
+		c.JSON(400, dto.ErrorResponse{
+			Error: "Destination parameter is required for search",
+		})
+		return
+	}
+
+	result, err := h.uc.SearchSimilar(c.Request.Context(), input.SearchSimilarInput{
+		CommentDestination: destination,
+		Content:            query,
+		Author:             author,
 	})
 	if err != nil {
-		c.JSON(500, dto.DefaultResponse{"error": err.Error()})
+		c.JSON(500, dto.ErrorResponse{
+			Error:   "Search failed",
+			Details: err.Error(),
+		})
 		return
 	}
 
-	response := dto.CommentsResponse{
-		Comments: comments,
-		Total:    len(comments),
-		Page:     page,
-		PageSize: pageSize,
-	}
-
-	c.JSON(200, dto.DefaultResponse{
-		"data": response,
-		"meta": map[string]interface{}{
-			"search_query": query,
-		},
+	c.JSON(200, dto.SuccessResponse{
+		Data: result,
 	})
 }
 
 func (h *Handler) RegisterRoutes(router *ginext.RouterGroup) {
+	// – POST /comments — создание комментария (с указанием родительского)
 	router.POST("/comments", h.CreateComment)
-	router.GET("/comments/:id", h.GetComment)
-	router.GET("/comments", h.GetComments)
+
+	// – GET /comments?parent={id} — получение комментария и всех вложенных
+	router.GET("/comments", h.GetComment)
+
+	// – DELETE /comments/{id} — удаление комментария и всех вложенных под ним
 	router.DELETE("/comments/:id", h.DeleteComment)
+
+	// Additional:
+	// – GET /comments/tree?destination=post_123&cursor=0 – получение комментариев с пагинацией
+	router.GET("/comments/tree", h.GetCommentTree)
+
+	// GET /comments/search?destination=post_123&q=search_term – полнотекстовый поиск по комментариям
 	router.GET("/comments/search", h.SearchComments)
 }

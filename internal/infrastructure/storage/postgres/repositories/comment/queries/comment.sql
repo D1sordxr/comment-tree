@@ -22,7 +22,7 @@ ORDER BY id ASC
 WITH RECURSIVE comment_tree AS (
     SELECT id, parent_id, comment_destination, author, content, created_at, updated_at
     FROM comments
-    WHERE id = ANY($1::int[])
+    WHERE id = ANY(@ids::int[])
 
     UNION ALL
 

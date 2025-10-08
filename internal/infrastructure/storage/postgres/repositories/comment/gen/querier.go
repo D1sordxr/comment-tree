@@ -12,7 +12,7 @@ type Querier interface {
 	CreateComment(ctx context.Context, arg CreateCommentParams) (Comment, error)
 	DeleteCommentByID(ctx context.Context, id int32) error
 	GetCommentsByDestination(ctx context.Context, commentDestination string) ([]Comment, error)
-	GetCommentsWithChildren(ctx context.Context, dollar_1 []int32) ([]GetCommentsWithChildrenRow, error)
+	GetCommentsWithChildren(ctx context.Context, ids []int32) ([]GetCommentsWithChildrenRow, error)
 	GetRootCommentIDsWithPagination(ctx context.Context, arg GetRootCommentIDsWithPaginationParams) ([]int32, error)
 }
 

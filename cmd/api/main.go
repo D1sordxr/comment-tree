@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"github.com/D1sordxr/comment-tree/internal/application/comment/usecase"
+	"github.com/D1sordxr/comment-tree/internal/infrastructure/storage/postgres/repositories/comment/repo"
+	"github.com/D1sordxr/comment-tree/internal/transport/http/api/comment/handler"
 	"os"
 	"os/signal"
 	"syscall"
@@ -37,9 +40,14 @@ func main() {
 		return
 	}
 
+	commentRepo := repo.New(storageConn)
+	commentUC := usecase.New(log, commentRepo)
+	commentHandler := handler.New(commentUC)
+
 	httpServer := http.NewServer(
 		log,
 		&cfg.Server,
+		commentHandler,
 	)
 
 	app := loadApp.NewApp(

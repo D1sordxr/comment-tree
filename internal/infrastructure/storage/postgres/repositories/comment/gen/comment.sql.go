@@ -120,8 +120,8 @@ type GetCommentsWithChildrenRow struct {
 	UpdatedAt          sql.NullTime   `json:"updated_at"`
 }
 
-func (q *Queries) GetCommentsWithChildren(ctx context.Context, dollar_1 []int32) ([]GetCommentsWithChildrenRow, error) {
-	rows, err := q.db.QueryContext(ctx, getCommentsWithChildren, pq.Array(dollar_1))
+func (q *Queries) GetCommentsWithChildren(ctx context.Context, ids []int32) ([]GetCommentsWithChildrenRow, error) {
+	rows, err := q.db.QueryContext(ctx, getCommentsWithChildren, pq.Array(ids))
 	if err != nil {
 		return nil, err
 	}

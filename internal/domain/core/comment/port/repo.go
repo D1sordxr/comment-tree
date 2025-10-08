@@ -8,6 +8,7 @@ import (
 
 type Repository interface {
 	Create(ctx context.Context, p params.Create) (*model.Comment, error)
+	GetByIDWithChildren(ctx context.Context, id int) (model.RawComments, error)
 	GetByDestination(ctx context.Context, dest string) ([]model.Comment, error)
 	GetWithPagination(ctx context.Context, p params.GetWithPagination) ([]model.Comment, error)
 	Delete(ctx context.Context, id int) error

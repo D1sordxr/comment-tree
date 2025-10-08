@@ -35,6 +35,22 @@ func (r *Repository) Create(ctx context.Context, p params.Create) (*model.Commen
 	return &comment, nil
 }
 
+func (r *Repository) GetByIDWithChildren(ctx context.Context, id int) (model.RawComments, error) {
+	const op = "comment.Repository.GetByIDWithChildren"
+
+	rawComments, err := r.queries.GetCommentsWithChildren(ctx, []int32{int32(id)})
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	comments := make(model.RawComments, len(rawComments))
+	for i, rawComment := range rawComments {
+		comments[i] = converters.ConvertGetCommentsWithChildrenRowToModel(rawComment)
+	}
+
+	return comments, nil
+}
+
 func (r *Repository) GetByDestination(ctx context.Context, dest string) ([]model.Comment, error) {
 	const op = "comment.Repository.GetByDestination"
 

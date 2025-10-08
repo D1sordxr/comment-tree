@@ -1,9 +1,5 @@
 package dto
 
-import (
-	"github.com/D1sordxr/comment-tree/internal/domain/core/comment/model"
-)
-
 type DefaultResponse map[string]any
 
 type CreateCommentRequest struct {
@@ -13,9 +9,12 @@ type CreateCommentRequest struct {
 	CommentDestination string `json:"comment_destination" binding:"required" validate:"required,max=255"`
 }
 
-type CommentsResponse struct {
-	Comments []model.Comment `json:"comments"`
-	Total    int             `json:"total"`
-	Page     int             `json:"page"`
-	PageSize int             `json:"page_size"`
+type ErrorResponse struct {
+	Error   string `json:"error"`
+	Details string `json:"details,omitempty"`
+}
+
+type SuccessResponse struct {
+	Message string `json:"message,omitempty"`
+	Data    any    `json:"data,omitempty"`
 }
